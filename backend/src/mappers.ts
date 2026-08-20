@@ -1,6 +1,7 @@
-// Maps between DB rows (snake_case columns, JSONB blobs) and the app's
-// camelCase TypeScript shapes (see src/types.ts). Nested JSONB blobs are
-// stored pre-shaped as camelCase already, so they pass through untouched.
+// Maps between DB rows (snake_case columns, JSONB blobs) and the API's
+// camelCase JSON shapes (mirrors the frontend's src/types.ts). Nested JSONB
+// blobs are stored pre-shaped as camelCase already, so they pass through
+// untouched.
 
 export function rowToSeminarian(row: any) {
   return {

@@ -1,53 +1,88 @@
 # Quản lý Chủng sinh — Seminarian Management System
 
-Ứng dụng React (Vite) quản lý hồ sơ chủng sinh, đào tạo, mục vụ và lịch của Đại Chủng viện.
+Ứng dụng quản lý hồ sơ chủng sinh, đào tạo, mục vụ và lịch của Đại Chủng viện.
 
-## Kiến trúc
+## Kiến trúc: 2 project tách biệt hoàn toàn
 
-- **Frontend**: React 19 + Vite + Tailwind, toàn bộ trong `src/`.
-- **Backend**: Vercel Serverless Functions trong `api/*.ts`, kết nối **Vercel Postgres (Neon)** qua gói `@vercel/postgres`. Trình duyệt **không bao giờ** kết nối thẳng tới Postgres — connection string chỉ tồn tại phía server (env var `POSTGRES_URL` do Vercel tự inject), nên an toàn để deploy công khai.
-- **Không có đăng nhập/phân quyền thật** (theo quyết định hiện tại) — ai mở app cũng có toàn quyền sửa dữ liệu. Xem `src/components/SettingsView.tsx` để biết định hướng phân quyền tương lai.
-- Nếu `/api/*` không phản hồi được (chưa deploy lên Vercel, hoặc chưa gắn database), ứng dụng tự động rơi về **chế độ cục bộ**: dùng dữ liệu mẫu trong `src/mockData.ts` và lưu tạm vào `localStorage` của trình duyệt — không mất chức năng, chỉ mất phần dùng chung nhiều thiết bị.
+```
+frontend/   React 19 + Vite + Tailwind — deploy thành 1 Vercel project riêng (static site)
+backend/    Express API + Vercel Postgres (Neon) — deploy thành 1 Vercel project riêng
+```
 
-## Chạy local (chỉ frontend, không cần database)
+Hai project có **URL riêng biệt**, deploy độc lập, giao tiếp qua HTTP (frontend gọi backend bằng
+`fetch`, backend cho phép bằng CORS). Không dùng chung build, không dùng chung domain.
+
+- **Backend không có đăng nhập/phân quyền thật** (theo quyết định hiện tại) — bất kỳ ai gọi được
+  API đều có toàn quyền đọc/ghi dữ liệu. Xem `frontend/src/components/SettingsView.tsx` để biết
+  định hướng phân quyền tương lai.
+- Nếu frontend không gọi được backend (chưa cấu hình `VITE_API_URL`, backend chưa deploy, hoặc
+  chưa gắn database), ứng dụng **tự động rơi về chế độ cục bộ**: dùng dữ liệu mẫu và lưu tạm vào
+  `localStorage` — không mất chức năng, chỉ mất phần dùng chung nhiều thiết bị/người dùng.
+
+## 1. Backend (`backend/`)
+
+### Chạy local
 
 ```bash
+cd backend
 npm install
-npm run dev
+cp .env.example .env.local   # rồi điền POSTGRES_URL thật vào
+npm run dev                   # http://localhost:4000
 ```
 
-Mở `http://localhost:3000`. App chạy ở chế độ cục bộ (banner cam sẽ hiện ra).
+### Deploy lên Vercel
 
-## Chạy local đầy đủ (có `/api` + database thật)
+1. **Vercel Dashboard** → **Add New → Project** → Import repo, chọn **Root Directory = `backend`**.
+2. Deploy xong sẽ có URL dạng `https://<tên-project>.vercel.app`.
+3. **Gắn database**: project này → tab **Storage** → **Create Database** → **Postgres (Neon)** →
+   gói **Free** → **Connect**. Vercel tự thêm biến môi trường `POSTGRES_URL`.
+4. **Khởi tạo schema**: **Storage** → chọn DB → **Query**, dán nội dung
+   [`backend/db/migration.sql`](backend/db/migration.sql) và chạy (chỉ 1 lần).
+5. **Cấu hình CORS**: project → **Settings → Environment Variables** → thêm
+   `ALLOWED_ORIGINS` = URL của frontend (ví dụ `https://quanlydubi-frontend.vercel.app`), có thể
+   liệt kê nhiều origin cách nhau bởi dấu phẩy (thêm cả `http://localhost:3000` nếu muốn chạy
+   frontend local gọi vào backend production). Redeploy sau khi thêm biến môi trường.
 
-Cần Vercel CLI:
+### Cấu trúc
+
+```
+backend/
+  api/index.ts        # entry point Vercel Serverless Function — export Express app
+  src/app.ts           # Express app: CORS, JSON body parser, mount router, error handler
+  src/db.ts             # kết nối Postgres qua @neondatabase/serverless
+  src/mappers.ts         # map cột DB (snake_case) <-> JSON API (camelCase)
+  src/routes/*.ts         # REST đầy đủ: GET / , GET /:id , POST / , PUT /:id , DELETE /:id
+  src/local-server.ts       # entry point khi chạy `npm run dev` / `npm start` (Express thường)
+  db/migration.sql           # schema Postgres — chạy 1 lần
+```
+
+## 2. Frontend (`frontend/`)
+
+### Chạy local
 
 ```bash
-npm install -g vercel
-vercel link          # liên kết thư mục này với project Vercel
-vercel env pull .env.local   # tải POSTGRES_URL và các biến môi trường về máy
-vercel dev            # chạy cả frontend lẫn /api trên cùng 1 cổng
+cd frontend
+npm install
+npm run dev   # http://localhost:3000 — chạy được ngay cả khi chưa có backend (chế độ cục bộ)
 ```
 
-## Deploy lên Vercel + gắn Database
-
-1. **Tạo database**: Vercel Dashboard → chọn project → tab **Storage** → **Create Database** → chọn **Postgres (Neon)** → gói **Free** → **Connect** vào project này. Vercel sẽ tự động thêm biến môi trường `POSTGRES_URL` (và vài biến liên quan) cho cả 3 môi trường Production/Preview/Development.
-
-2. **Khởi tạo schema**: mở tab **Storage** → chọn database vừa tạo → **Query** (SQL editor), dán toàn bộ nội dung file [`db/migration.sql`](db/migration.sql) và chạy. Chỉ cần chạy **một lần**.
-
-3. **Deploy**: push code lên nhánh chính, Vercel sẽ tự build (`npm run build`) và deploy — cả frontend (Vite) lẫn các hàm trong `api/*.ts` (Vercel tự nhận diện thư mục `api/` làm Serverless Functions, không cần cấu hình thêm).
-
-4. Sau khi deploy xong và database đã có schema, mở lại app — banner cảnh báo sẽ biến mất, nghĩa là đã kết nối Postgres thành công và dữ liệu giờ dùng chung được cho mọi thiết bị/người dùng.
-
-## Cấu trúc thư mục quan trọng
+Để frontend local gọi vào backend (local hoặc production), tạo `frontend/.env.local`:
 
 ```
-api/                     # Serverless Functions (backend) — mỗi file = 1 endpoint
-  _lib/mappers.ts         # map giữa cột DB (snake_case) và kiểu TS (camelCase)
-  seminarians.ts          # GET (list) / POST (upsert) / DELETE (?id=)
-  courses.ts, pastorals.ts, events.ts, activities.ts, settings.ts
-db/migration.sql          # Schema Postgres — chạy 1 lần trong Vercel Storage Query
-src/
-  lib/api.ts              # fetch wrapper phía client gọi tới /api/*
-  components/              # UI
+VITE_API_URL="http://localhost:4000"
 ```
+
+### Deploy lên Vercel
+
+1. **Vercel Dashboard** → **Add New → Project** → Import cùng repo, chọn **Root Directory =
+   `frontend`** (project **khác** với project backend ở trên).
+2. **Settings → Environment Variables** → thêm `VITE_API_URL` = URL backend đã deploy (ví dụ
+   `https://quanlydubi-backend.vercel.app`, **không** có dấu `/` ở cuối).
+3. Deploy. Nhớ quay lại backend, thêm URL frontend này vào `ALLOWED_ORIGINS` (bước CORS ở trên).
+
+## Ghi chú
+
+- `db/migration.sql` chỉ chạy 1 lần lúc khởi tạo — mọi thay đổi schema sau này cần migration mới,
+  không sửa trực tiếp file cũ.
+- Vì 2 project deploy độc lập, mỗi lần push code lên `main`, **cả 2** sẽ tự động build & deploy lại
+  (Vercel Git integration theo dõi cả repo, mỗi project chỉ build phần `Root Directory` của nó).

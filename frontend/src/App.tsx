@@ -178,8 +178,12 @@ export function App() {
 
     if (dbConnected) {
       try {
-        await api.seminarians.save(saved);
-        await api.activities.save(activity);
+        if (isNew) {
+          await api.seminarians.create(saved);
+        } else {
+          await api.seminarians.update(saved.id, saved);
+        }
+        await api.activities.create(activity);
       } catch (e) {
         console.error('Lưu chủng sinh vào cơ sở dữ liệu thất bại:', e);
       }
@@ -207,7 +211,7 @@ export function App() {
     setEvents((prev) => [newEvent, ...prev]);
     if (dbConnected) {
       try {
-        await api.events.save(newEvent);
+        await api.events.create(newEvent);
       } catch (e) {
         console.error('Lưu sự kiện thất bại:', e);
       }
@@ -215,13 +219,19 @@ export function App() {
   };
 
   const handleSaveCourse = async (course: Course) => {
+    const isNew = !courses.some((c) => c.id === course.id);
+
     setCourses((prev) => {
       const exists = prev.some((c) => c.id === course.id);
       return exists ? prev.map((c) => (c.id === course.id ? course : c)) : [course, ...prev];
     });
     if (dbConnected) {
       try {
-        await api.courses.save(course);
+        if (isNew) {
+          await api.courses.create(course);
+        } else {
+          await api.courses.update(course.id, course);
+        }
       } catch (e) {
         console.error('Lưu môn học thất bại:', e);
       }
@@ -240,13 +250,19 @@ export function App() {
   };
 
   const handleSavePastoral = async (assignment: PastoralAssignment) => {
+    const isNew = !pastorals.some((p) => p.id === assignment.id);
+
     setPastorals((prev) => {
       const exists = prev.some((p) => p.id === assignment.id);
       return exists ? prev.map((p) => (p.id === assignment.id ? assignment : p)) : [assignment, ...prev];
     });
     if (dbConnected) {
       try {
-        await api.pastorals.save(assignment);
+        if (isNew) {
+          await api.pastorals.create(assignment);
+        } else {
+          await api.pastorals.update(assignment.id, assignment);
+        }
       } catch (e) {
         console.error('Lưu phân công mục vụ thất bại:', e);
       }
