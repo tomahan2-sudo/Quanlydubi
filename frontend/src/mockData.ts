@@ -1,4 +1,4 @@
-import { Seminarian, Course, PastoralAssignment, Activity, CalendarEvent, AcademicYearRecord } from './types';
+import { Seminarian, Course, PastoralAssignment, Activity, CalendarEvent, AcademicYearRecord, RectorProfile } from './types';
 
 export const createDefaultAnnualRecords = (name: string, homeParishName: string): AcademicYearRecord[] => [
   {
@@ -930,3 +930,29 @@ export const CLASS_DISTRIBUTION = [
   { class: 'Mục vụ', count: 32, percentage: 40, color: '#ffb55c' },
   { class: 'Phó tế', count: 18, percentage: 45, color: '#adc7f7' },
 ];
+
+export const DEFAULT_RECTOR: RectorProfile = {
+  saintName: 'Giuse',
+  fullName: 'Nguyễn Văn Tuấn',
+  title: 'Linh mục Giám đốc Đại Chủng Viện',
+  avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDI-HJLLKFxOY8kIHFjYQvSGaa3K3VisUaN-7LgtEFHvR9kBoOFQpkW0AJjBDb9lo0eIEzv28Z-zbvQViXvS9dn50NvHQ1_Tel0uN60yUf5zzq62FNDD4aP0Cf9W3gjbSOXuqj717gQ4fZl_dYHz8icxY36VQMbjPWzmSEFEXpouOFGz11TzpjCA3nKTOJMl3l7BZraV_Y6WKhkvtBQlMvkrJkN7ILyZa178cxG-HWWVujgmqas6Mzv',
+  email: 'giamdoc.dcv@tonggiaophannhanoi.org',
+  phone: '0912 345 678',
+  diocese: 'Tổng Giáo phận Hà Nội',
+  appointedDate: '01/09/2020',
+  roleTitle: 'Toàn quyền Quản trị cao nhất (Super Administrator)',
+  signatureText: 'Lm. Giuse Nguyễn Văn Tuấn',
+  permissions: {
+    superAdmin: true,
+    approveSeminarians: true,
+    manageEvaluations: true,
+    editRecords: true,
+    academicManagement: true,
+    pastoralAssignment: true,
+    systemSettings: true,
+    databaseMaster: true,
+    securityAudit: true,
+    signOfficialDocuments: true,
+  },
+};
+

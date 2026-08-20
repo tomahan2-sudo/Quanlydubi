@@ -1,0 +1,6 @@
+{
+  "name": "Quản lý Chủng sinh",
+  "description": "Hệ thống Quản lý Đào tạo Chủng sinh, phân quyền Cha Giám Đốc và đồng bộ dữ liệu Đại Chủng Viện",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

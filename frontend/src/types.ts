@@ -193,10 +193,42 @@ export interface CalendarEvent {
 
 export type ViewType = 'dashboard' | 'seminarians' | 'detail' | 'training' | 'calendar' | 'settings';
 
+export interface RectorPermissions {
+  superAdmin: boolean; // Toàn quyền quản trị cao nhất
+  approveSeminarians: boolean; // Phê duyệt tuyển sinh & Tiến cử Chức Thánh
+  manageEvaluations: boolean; // Phê chuẩn Đánh giá 4 Chiều kích & Bảng điểm
+  editRecords: boolean; // Toàn quyền Tạo, Chỉnh sửa & Xóa hồ sơ
+  academicManagement: boolean; // Quản lý Môn học & Phân công Giáo sư
+  pastoralAssignment: boolean; // Phân bổ Thực tập Mục vụ & Giáo xứ hè
+  systemSettings: boolean; // Cấu hình hệ thống & Quản trị
+  databaseMaster: boolean; // Cơ sở dữ liệu & Sao lưu
+  securityAudit: boolean; // Nhật ký bảo mật & Phân quyền
+  signOfficialDocuments: boolean; // Ký số & Đóng dấu hồ sơ A4, Word, PDF
+}
+
+export interface RectorProfile {
+  saintName: string;
+  fullName: string;
+  title: string;
+  avatarUrl: string;
+  email: string;
+  phone: string;
+  diocese: string;
+  appointedDate?: string;
+  roleTitle?: string;
+  signatureText?: string;
+  permissions: RectorPermissions;
+}
+
 export interface AppSettings {
   seminaryName: string;
   rectorName: string;
   diocese: string;
   address: string;
   currentYear: string;
+  apiUrl?: string; // URL kết nối trực tiếp (ví dụ: https://quanlydubi.vercel.app)
+  autoSync?: boolean; // Tự động cập nhật / đồng bộ
+  syncIntervalSeconds?: number; // Tần suất cập nhật (giây)
+  lastSyncedAt?: string; // Thời điểm đồng bộ gần nhất
 }
+

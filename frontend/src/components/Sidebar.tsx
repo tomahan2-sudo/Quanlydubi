@@ -6,15 +6,19 @@ import {
   CalendarDays, 
   Settings, 
   Church, 
-  X
+  X,
+  ShieldCheck,
+  Edit3
 } from 'lucide-react';
-import { ViewType } from '../types';
+import { ViewType, RectorProfile } from '../types';
 
 interface SidebarProps {
   currentView: ViewType;
   onSelectView: (view: ViewType) => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  rector: RectorProfile;
+  onOpenRectorModal: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -22,6 +26,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectView,
   mobileOpen,
   onCloseMobile,
+  rector,
+  onOpenRectorModal,
 }) => {
   const navItems: { id: ViewType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Bảng điều khiển', icon: LayoutDashboard },
@@ -64,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             id="close-sidebar-btn"
             onClick={onCloseMobile}
-            className="md:hidden p-1.5 rounded-full hover:bg-[#e0e3e5] text-[#74777f]"
+            className="md:hidden p-1.5 rounded-full hover:bg-[#e0e3e5] text-[#74777f] cursor-pointer"
             aria-label="Đóng menu"
           >
             <X className="w-5 h-5" />
@@ -85,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onSelectView(item.id);
                   onCloseMobile();
                 }}
-                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-full text-[14px] font-semibold transition-all duration-200 active:scale-[0.98] ${
+                className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-full text-[14px] font-semibold transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                   isActive
                     ? 'bg-[#ffddba]/40 text-[#002045] font-bold shadow-xs'
                     : 'text-[#43474e] hover:bg-[#e5e9eb] hover:text-[#002045]'
@@ -104,21 +110,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* User Card at Bottom */}
         <div className="px-3 pt-3 mt-auto border-t border-[#e0e3e5]/60">
-          <div className="bg-white/80 rounded-xl p-3 flex items-center gap-3 border border-[#e0e3e5] shadow-xs">
-            <div className="w-10 h-10 rounded-full overflow-hidden border border-[#c4c6cf] shrink-0">
+          <div 
+            onClick={onOpenRectorModal}
+            className="bg-white hover:bg-[#e8effd] rounded-2xl p-3 flex items-center gap-3 border border-[#e0e3e5] hover:border-[#adc7f7] shadow-xs cursor-pointer transition-all group"
+            title="Nhấn để đổi hình, tên và quyền truy cập Cha Giám Đốc"
+          >
+            <div className="relative w-10 h-10 rounded-full overflow-hidden border border-[#c4c6cf] shadow-xs shrink-0 ring-2 ring-[#ffddba]/60">
               <img
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDI-HJLLKFxOY8kIHFjYQvSGaa3K3VisUaN-7LgtEFHvR9kBoOFQpkW0AJjBDb9lo0eIEzv28Z-zbvQViXvS9dn50NvHQ1_Tel0uN60yUf5zzq62FNDD4aP0Cf9W3gjbSOXuqj717gQ4fZl_dYHz8icxY36VQMbjPWzmSEFEXpouOFGz11TzpjCA3nKTOJMl3l7BZraV_Y6WKhkvtBQlMvkrJkN7ILyZa178cxG-HWWVujgmqas6Mzv"
-                alt="Cha Giám đốc"
+                src={rector.avatarUrl}
+                alt={rector.fullName}
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="overflow-hidden flex-1 text-left">
-              <p className="text-[13px] font-bold text-[#181c1e] truncate leading-tight">
-                Cha Giám đốc
+              <p className="text-[13px] font-bold text-[#181c1e] truncate leading-tight group-hover:text-[#002045]">
+                {rector.saintName} {rector.fullName}
               </p>
-              <p className="text-[11px] text-[#74777f] font-medium truncate">
-                Administrator
-              </p>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-[10px] font-black uppercase text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                  <ShieldCheck className="w-2.5 h-2.5" />
+                  <span>Super Admin</span>
+                </span>
+              </div>
+            </div>
+            <div className="p-1 text-[#74777f] group-hover:text-[#002045] transition-colors">
+              <Edit3 className="w-4 h-4" />
             </div>
           </div>
         </div>
@@ -126,3 +142,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </>
   );
 };
+

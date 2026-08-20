@@ -5,23 +5,99 @@ import {
   CalendarEvent,
   Activity,
   AppSettings,
+  RectorProfile,
 } from '../types';
 
-const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+export const DEFAULT_LIVE_URL = 'https://quanlydubi.vercel.app';
+
+export function getBaseApiUrl(): string {
+  try {
+    const custom = localStorage.getItem('sms_api_url');
+    if (custom !== null && custom !== undefined && custom.trim() !== '') {
+      return custom.trim().replace(/\/$/, '');
+    }
+  } catch {}
+
+  const envUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/$/, '');
+  }
+
+  return DEFAULT_LIVE_URL;
+}
+
+export function setCustomApiUrl(url: string | null): void {
+  try {
+    if (!url || url.trim() === '') {
+      localStorage.removeItem('sms_api_url');
+    } else {
+      localStorage.setItem('sms_api_url', url.trim().replace(/\/$/, ''));
+    }
+  } catch {}
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
-    throw new Error(`${options?.method ?? 'GET'} ${path} failed: ${res.status}`);
+  const baseUrl = getBaseApiUrl();
+  const url = `${baseUrl}${path}`;
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      ...options,
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      throw new Error(`${options?.method ?? 'GET'} ${path} failed with status: ${res.status}`);
+    }
+    if (res.status === 204) return undefined as T;
+    return res.json();
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    throw err;
   }
-  if (res.status === 204) return undefined as T;
-  return res.json();
 }
 
 export const api = {
+  testConnection: async (targetUrl?: string): Promise<{ ok: boolean; latencyMs: number; message: string }> => {
+    const baseUrl = (targetUrl ?? getBaseApiUrl()).replace(/\/$/, '');
+    const startTime = Date.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      // Test either /health, /, or root HEAD
+      const res = await fetch(`${baseUrl}/health`, { 
+        method: 'GET',
+        signal: controller.signal 
+      }).catch(async () => {
+        return await fetch(`${baseUrl}`, { 
+          method: 'GET',
+          signal: controller.signal 
+        });
+      });
+      clearTimeout(timeoutId);
+      const latencyMs = Date.now() - startTime;
+
+      if (res.ok) {
+        return { ok: true, latencyMs, message: `Kết nối thành công (${latencyMs}ms)` };
+      }
+      return { ok: true, latencyMs, message: `Đã phản hồi (HTTP ${res.status}, ${latencyMs}ms)` };
+    } catch (e: any) {
+      clearTimeout(timeoutId);
+      const latencyMs = Date.now() - startTime;
+      return { 
+        ok: false, 
+        latencyMs, 
+        message: e?.name === 'AbortError' ? 'Hết thời gian chờ kết nối (Timeout)' : 'Không thể kết nối trực tiếp đến endpoint' 
+      };
+    }
+  },
+
   seminarians: {
     list: () => request<Seminarian[]>('/seminarians'),
     create: (s: Seminarian) =>
@@ -70,4 +146,9 @@ export const api = {
     get: () => request<AppSettings | null>('/settings'),
     save: (s: AppSettings) => request<AppSettings>('/settings', { method: 'PUT', body: JSON.stringify(s) }),
   },
+  rector: {
+    get: () => request<RectorProfile | null>('/rector'),
+    save: (r: RectorProfile) => request<RectorProfile>('/rector', { method: 'PUT', body: JSON.stringify(r) }),
+  }
 };
+
