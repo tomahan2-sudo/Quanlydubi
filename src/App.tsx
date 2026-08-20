@@ -14,20 +14,36 @@ import { ReportModal } from './components/ReportModal';
 import { ExportModal } from './components/ExportModal';
 import { HelpModal } from './components/HelpModal';
 
-import { ViewType, Seminarian, CalendarEvent } from './types';
-import { 
-  INITIAL_SEMINARIANS, 
-  INITIAL_COURSES, 
-  INITIAL_PASTORALS, 
-  INITIAL_EVENTS, 
-  INITIAL_ACTIVITIES 
+import { ViewType, Seminarian, CalendarEvent, Course, PastoralAssignment, AppSettings } from './types';
+import {
+  INITIAL_SEMINARIANS,
+  INITIAL_COURSES,
+  INITIAL_PASTORALS,
+  INITIAL_EVENTS,
+  INITIAL_ACTIVITIES
 } from './mockData';
+import { api } from './lib/api';
+
+const DEFAULT_SETTINGS: AppSettings = {
+  seminaryName: 'Đại Chủng viện Thánh Giuse',
+  rectorName: 'Cha Giuse Nguyễn Văn A (Linh mục Giám đốc)',
+  diocese: 'Tổng Giáo phận Hà Nội',
+  address: '40 Nhà Chung, Hàng Trống, Hoàn Kiếm, Hà Nội',
+  currentYear: '2024 - 2025',
+};
 
 export function App() {
   // Navigation State
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
+
+  // Backend connection state: while `null` we're still probing /api on
+  // mount; once resolved it's `true` (Vercel Postgres reachable — every
+  // write goes through /api) or `false` (no backend — falls back to the
+  // localStorage/mock-data behavior this app shipped with originally).
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Primary Data State with LocalStorage Persistence
   const [seminarians, setSeminarians] = useState<Seminarian[]>(() => {
@@ -39,8 +55,8 @@ export function App() {
     }
   });
 
-  const [courses, setCourses] = useState(() => INITIAL_COURSES);
-  const [pastorals, setPastorals] = useState(() => INITIAL_PASTORALS);
+  const [courses, setCourses] = useState<Course[]>(() => INITIAL_COURSES);
+  const [pastorals, setPastorals] = useState<PastoralAssignment[]>(() => INITIAL_PASTORALS);
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     try {
       const saved = localStorage.getItem('sms_events');
@@ -50,6 +66,43 @@ export function App() {
     }
   });
   const [activities, setActivities] = useState(() => INITIAL_ACTIVITIES);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+
+  // On first mount, try the real backend. If it answers, that becomes the
+  // source of truth; otherwise we keep the original local-only behavior.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [sems, crs, pst, evs, acts, cfg] = await Promise.all([
+          api.seminarians.list(),
+          api.courses.list(),
+          api.pastorals.list(),
+          api.events.list(),
+          api.activities.list(),
+          api.settings.get(),
+        ]);
+        if (cancelled) return;
+        setSeminarians(sems);
+        setCourses(crs);
+        setPastorals(pst);
+        setEvents(evs);
+        setActivities(acts);
+        if (cfg) setSettings(cfg);
+        setDbConnected(true);
+      } catch (e) {
+        console.warn('[app] Không kết nối được /api — dùng dữ liệu cục bộ.', e);
+        if (!cancelled) setDbConnected(false);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Selected Seminarian for Detail view
   const [selectedSeminarian, setSelectedSeminarian] = useState<Seminarian>(
@@ -97,7 +150,9 @@ export function App() {
     setIsAddEditModalOpen(true);
   };
 
-  const handleSaveSeminarian = (saved: Seminarian) => {
+  const handleSaveSeminarian = async (saved: Seminarian) => {
+    const isNew = !seminarians.some((s) => s.id === saved.id);
+
     setSeminarians((prev) => {
       const exists = prev.some((s) => s.id === saved.id);
       if (exists) {
@@ -110,22 +165,28 @@ export function App() {
       setSelectedSeminarian(saved);
     }
 
-    // Add activity log
-    setActivities((prev) => [
-      {
-        id: `act-${Date.now()}`,
-        title: editingSeminarian
-          ? `Đã cập nhật hồ sơ chủng sinh ${saved.fullName}`
-          : `Đã tiếp nhận hồ sơ mới: ${saved.fullName}`,
-        description: `Lớp: ${saved.stage} • Giáo phận ${saved.diocese}`,
-        time: 'Vừa xong',
-        type: 'user',
-      },
-      ...prev,
-    ]);
+    const activity = {
+      id: `act-${Date.now()}`,
+      title: isNew
+        ? `Đã tiếp nhận hồ sơ mới: ${saved.fullName}`
+        : `Đã cập nhật hồ sơ chủng sinh ${saved.fullName}`,
+      description: `Lớp: ${saved.stage} • Giáo phận ${saved.diocese}`,
+      time: 'Vừa xong',
+      type: (isNew ? 'admission' : 'review') as 'admission' | 'review',
+    };
+    setActivities((prev) => [activity, ...prev]);
+
+    if (dbConnected) {
+      try {
+        await api.seminarians.save(saved);
+        await api.activities.save(activity);
+      } catch (e) {
+        console.error('Lưu chủng sinh vào cơ sở dữ liệu thất bại:', e);
+      }
+    }
   };
 
-  const handleDeleteSeminarian = (id: string) => {
+  const handleDeleteSeminarian = async (id: string) => {
     setSeminarians((prev) => prev.filter((s) => s.id !== id));
     if (selectedSeminarian.id === id) {
       setSelectedSeminarian(seminarians.find((s) => s.id !== id) || INITIAL_SEMINARIANS[0]);
@@ -133,10 +194,81 @@ export function App() {
         setCurrentView('seminarians');
       }
     }
+    if (dbConnected) {
+      try {
+        await api.seminarians.remove(id);
+      } catch (e) {
+        console.error('Xóa chủng sinh thất bại:', e);
+      }
+    }
   };
 
-  const handleAddEvent = (newEvent: CalendarEvent) => {
+  const handleAddEvent = async (newEvent: CalendarEvent) => {
     setEvents((prev) => [newEvent, ...prev]);
+    if (dbConnected) {
+      try {
+        await api.events.save(newEvent);
+      } catch (e) {
+        console.error('Lưu sự kiện thất bại:', e);
+      }
+    }
+  };
+
+  const handleSaveCourse = async (course: Course) => {
+    setCourses((prev) => {
+      const exists = prev.some((c) => c.id === course.id);
+      return exists ? prev.map((c) => (c.id === course.id ? course : c)) : [course, ...prev];
+    });
+    if (dbConnected) {
+      try {
+        await api.courses.save(course);
+      } catch (e) {
+        console.error('Lưu môn học thất bại:', e);
+      }
+    }
+  };
+
+  const handleDeleteCourse = async (id: string) => {
+    setCourses((prev) => prev.filter((c) => c.id !== id));
+    if (dbConnected) {
+      try {
+        await api.courses.remove(id);
+      } catch (e) {
+        console.error('Xóa môn học thất bại:', e);
+      }
+    }
+  };
+
+  const handleSavePastoral = async (assignment: PastoralAssignment) => {
+    setPastorals((prev) => {
+      const exists = prev.some((p) => p.id === assignment.id);
+      return exists ? prev.map((p) => (p.id === assignment.id ? assignment : p)) : [assignment, ...prev];
+    });
+    if (dbConnected) {
+      try {
+        await api.pastorals.save(assignment);
+      } catch (e) {
+        console.error('Lưu phân công mục vụ thất bại:', e);
+      }
+    }
+  };
+
+  const handleDeletePastoral = async (id: string) => {
+    setPastorals((prev) => prev.filter((p) => p.id !== id));
+    if (dbConnected) {
+      try {
+        await api.pastorals.remove(id);
+      } catch (e) {
+        console.error('Xóa phân công mục vụ thất bại:', e);
+      }
+    }
+  };
+
+  const handleSaveSettings = async (next: AppSettings) => {
+    setSettings(next);
+    if (dbConnected) {
+      await api.settings.save(next);
+    }
   };
 
   const handleResetData = () => {
@@ -149,6 +281,17 @@ export function App() {
     localStorage.removeItem('sms_seminarians');
     localStorage.removeItem('sms_events');
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#f7fafc] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-[#74777f]">
+          <div className="w-8 h-8 border-2 border-[#c4c6cf] border-t-[#002045] rounded-full animate-spin" />
+          <p className="text-[13px] font-semibold">Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f7fafc] text-[#181c1e] flex">
@@ -178,6 +321,15 @@ export function App() {
 
         {/* Dynamic View Route */}
         <main className="flex-1">
+          {dbConnected === false && (
+            <div className="px-4 sm:px-6 md:px-8 pt-4">
+              <div className="rounded-xl border border-[#ffb85c] bg-[#fff4e5] text-[#875200] text-[13px] font-semibold px-4 py-2.5">
+                Chưa kết nối Vercel Postgres — đang dùng dữ liệu mẫu lưu tạm trên trình duyệt này.
+                Xem <code className="bg-white/60 px-1 rounded">README.md</code> để kết nối cơ sở dữ liệu thật.
+              </div>
+            </div>
+          )}
+
           {currentView === 'dashboard' && (
             <DashboardView
               seminarians={seminarians}
@@ -216,6 +368,10 @@ export function App() {
               onOpenExportModal={() => setIsExportModalOpen(true)}
               onOpenMapModal={() => setIsPastoralMapOpen(true)}
               onSelectSeminarian={handleSelectSeminarian}
+              onSaveCourse={handleSaveCourse}
+              onDeleteCourse={handleDeleteCourse}
+              onSavePastoral={handleSavePastoral}
+              onDeletePastoral={handleDeletePastoral}
             />
           )}
 
@@ -228,6 +384,9 @@ export function App() {
 
           {currentView === 'settings' && (
             <SettingsView
+              settings={settings}
+              onSaveSettings={handleSaveSettings}
+              dbConnected={dbConnected === true}
               onResetData={handleResetData}
             />
           )}
