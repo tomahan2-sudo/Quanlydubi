@@ -192,3 +192,11 @@ export interface CalendarEvent {
 }
 
 export type ViewType = 'dashboard' | 'seminarians' | 'detail' | 'training' | 'calendar' | 'settings';
+
+export interface AppSettings {
+  seminaryName: string;
+  rectorName: string;
+  diocese: string;
+  address: string;
+  currentYear: string;
+}

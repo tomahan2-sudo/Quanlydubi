@@ -1,22 +1,26 @@
-import React, { useState } from 'react';
-import { 
-  Download, 
-  FileText, 
-  BookOpen, 
-  Footprints, 
-  BarChart3, 
-  AlertTriangle, 
-  MapPin, 
-  Building2, 
-  Search, 
-  Filter, 
-  CheckSquare, 
-  AlertCircle, 
-  ChevronLeft, 
+import React, { useMemo, useState } from 'react';
+import {
+  Download,
+  FileText,
+  BookOpen,
+  Footprints,
+  BarChart3,
+  AlertTriangle,
+  MapPin,
+  Building2,
+  Search,
+  Filter,
+  CheckSquare,
+  AlertCircle,
+  ChevronLeft,
   ChevronRight,
-  ExternalLink
+  Plus,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { Course, PastoralAssignment, Seminarian } from '../types';
+import { AddEditCourseModal } from './AddEditCourseModal';
+import { AddEditPastoralModal } from './AddEditPastoralModal';
 
 interface TrainingManagementViewProps {
   courses: Course[];
@@ -26,7 +30,13 @@ interface TrainingManagementViewProps {
   onOpenExportModal: () => void;
   onOpenMapModal: () => void;
   onSelectSeminarian: (sem: Seminarian) => void;
+  onSaveCourse: (course: Course) => void;
+  onDeleteCourse: (id: string) => void;
+  onSavePastoral: (assignment: PastoralAssignment) => void;
+  onDeletePastoral: (id: string) => void;
 }
+
+const GRADES_PER_PAGE = 5;
 
 export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
   courses,
@@ -36,9 +46,18 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
   onOpenExportModal,
   onOpenMapModal,
   onSelectSeminarian,
+  onSaveCourse,
+  onDeleteCourse,
+  onSavePastoral,
+  onDeletePastoral,
 }) => {
   const [gradeSearchTerm, setGradeSearchTerm] = useState('');
   const [gradePage, setGradePage] = useState(1);
+
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [isPastoralModalOpen, setIsPastoralModalOpen] = useState(false);
+  const [editingPastoral, setEditingPastoral] = useState<PastoralAssignment | null>(null);
 
   // Filter seminarians for grades table
   const filteredGrades = seminarians.filter(
@@ -47,6 +66,44 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
       s.fullName.toLowerCase().includes(gradeSearchTerm.toLowerCase()) ||
       s.stage.toLowerCase().includes(gradeSearchTerm.toLowerCase())
   );
+
+  const totalGradePages = Math.max(1, Math.ceil(filteredGrades.length / GRADES_PER_PAGE));
+  const currentGradePage = Math.min(gradePage, totalGradePages);
+  const pagedGrades = filteredGrades.slice(
+    (currentGradePage - 1) * GRADES_PER_PAGE,
+    currentGradePage * GRADES_PER_PAGE
+  );
+
+  // Real metrics computed from actual data, instead of hardcoded numbers.
+  const metrics = useMemo(() => {
+    const internshipCount = seminarians.filter((s) => s.status === 'Thực tập mục vụ').length;
+    const parishCount = new Set(pastorals.map((p) => p.locationName)).size;
+
+    const allGrades = seminarians.flatMap((s) => [
+      s.grades?.philosophy,
+      s.grades?.theology,
+      s.grades?.scripture,
+      s.grades?.latin,
+      s.grades?.liturgy,
+    ].filter((g): g is number => typeof g === 'number'));
+    const avgGrade = allGrades.length
+      ? (allGrades.reduce((a, b) => a + b, 0) / allGrades.length).toFixed(1)
+      : '—';
+
+    const missingReviewCount = seminarians.filter((s) => !s.hasAdvisorReview).length;
+
+    return { internshipCount, parishCount, avgGrade, missingReviewCount };
+  }, [seminarians, pastorals]);
+
+  const handleSaveCourseSubmit = (course: Course) => {
+    onSaveCourse(course);
+    setEditingCourse(null);
+  };
+
+  const handleSavePastoralSubmit = (assignment: PastoralAssignment) => {
+    onSavePastoral(assignment);
+    setEditingPastoral(null);
+  };
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-[1440px] mx-auto w-full space-y-6 md:space-y-8 animate-in fade-in duration-200">
@@ -57,7 +114,7 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
             Quản lý Đào tạo & Mục vụ
           </h1>
           <p className="text-[14px] text-[#74777f] mt-1 font-normal">
-            Tổng quan tình hình học tập và thực tập mục vụ năm học 2024-2025
+            Tổng quan tình hình học tập và thực tập mục vụ
           </p>
         </div>
 
@@ -94,7 +151,7 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
             </div>
           </div>
           <div className="text-3xl md:text-4xl font-bold text-[#002045] tracking-tight">
-            12
+            {courses.length}
           </div>
           <p className="text-[12px] font-bold text-[#1a365d] mt-2">
             Đang diễn ra trong kỳ này
@@ -112,10 +169,10 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
             </div>
           </div>
           <div className="text-3xl md:text-4xl font-bold text-[#002045] tracking-tight">
-            45
+            {metrics.internshipCount}
           </div>
           <p className="text-[12px] text-[#74777f] font-medium mt-2">
-            Đã phân bổ về 15 giáo xứ
+            Đã phân bổ về {metrics.parishCount} giáo xứ
           </p>
         </div>
 
@@ -130,7 +187,7 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
             </div>
           </div>
           <div className="text-3xl md:text-4xl font-bold text-[#002045] tracking-tight">
-            8.4
+            {metrics.avgGrade}
           </div>
           <p className="text-[12px] text-[#74777f] font-medium mt-2">
             Toàn chủng viện
@@ -148,10 +205,10 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
             </div>
           </div>
           <div className="text-3xl md:text-4xl font-bold text-[#ba1a1a] tracking-tight">
-            3
+            {metrics.missingReviewCount}
           </div>
           <p className="text-[12px] font-bold text-[#ba1a1a] mt-2">
-            Báo cáo đánh giá trễ hạn
+            Chưa có nhận xét cố vấn
           </p>
         </div>
       </div>
@@ -165,9 +222,16 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
               <h3 className="text-[18px] font-bold text-[#002045]">
                 Khóa đào tạo đang diễn ra
               </h3>
-              <span className="text-[12px] text-[#74777f] font-semibold">
-                Học kỳ I (2024-2025)
-              </span>
+              <button
+                onClick={() => {
+                  setEditingCourse(null);
+                  setIsCourseModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-[#002045] text-white text-[12px] font-bold flex items-center gap-1.5 hover:bg-[#1a365d] cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Thêm môn học</span>
+              </button>
             </div>
 
             <div className="overflow-x-auto">
@@ -178,14 +242,22 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
                     <th className="py-3 px-3">Giáo Sư</th>
                     <th className="py-3 px-3">Cấp Học</th>
                     <th className="py-3 px-3">Tiến Độ</th>
+                    <th className="py-3 px-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e0e3e5]">
-                  {courses.slice(0, 4).map((c) => {
-                    const percentage = Math.round((c.currentWeek / c.totalWeeks) * 100);
+                  {courses.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-[13px] text-[#74777f]">
+                        Chưa có khóa học nào. Nhấn "Thêm môn học" để bắt đầu.
+                      </td>
+                    </tr>
+                  )}
+                  {courses.map((c) => {
+                    const percentage = c.totalWeeks > 0 ? Math.round((c.currentWeek / c.totalWeeks) * 100) : 0;
 
                     return (
-                      <tr key={c.id} className="hover:bg-[#f7fafc] transition-colors">
+                      <tr key={c.id} className="hover:bg-[#f7fafc] transition-colors group">
                         <td className="py-3.5 px-3">
                           <div className="font-bold text-[14px] text-[#181c1e]">
                             {c.name}
@@ -211,6 +283,29 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
                             Tuần {c.currentWeek}/{c.totalWeeks} ({percentage}%)
                           </span>
                         </td>
+                        <td className="py-3.5 px-3">
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => {
+                                setEditingCourse(c);
+                                setIsCourseModalOpen(true);
+                              }}
+                              className="p-1.5 rounded-lg hover:bg-[#e5e9eb] text-[#43474e] cursor-pointer"
+                              title="Sửa"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Xóa môn học "${c.name}"?`)) onDeleteCourse(c.id);
+                              }}
+                              className="p-1.5 rounded-lg hover:bg-[#ffdad6] text-[#ba1a1a] cursor-pointer"
+                              title="Xóa"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -227,26 +322,61 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
               <h3 className="text-[18px] font-bold text-[#002045]">
                 Thực tập Mục vụ
               </h3>
-              <span className="text-[12px] font-semibold text-[#875200] bg-[#ffddba]/40 px-2 py-0.5 rounded-full">
-                15 Giáo xứ
-              </span>
+              <button
+                onClick={() => {
+                  setEditingPastoral(null);
+                  setIsPastoralModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-[#002045] text-white text-[12px] font-bold flex items-center gap-1.5 hover:bg-[#1a365d] cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Thêm</span>
+              </button>
             </div>
 
             <div className="space-y-3.5">
-              {pastorals.slice(0, 3).map((p) => (
+              {pastorals.length === 0 && (
+                <p className="text-[13px] text-[#74777f] text-center py-4">
+                  Chưa có phân công mục vụ nào.
+                </p>
+              )}
+              {pastorals.map((p) => (
                 <div
                   key={p.id}
-                  className="p-3.5 rounded-xl bg-[#f7fafc] hover:bg-[#f1f4f6] border border-[#e0e3e5] transition-colors"
+                  className="p-3.5 rounded-xl bg-[#f7fafc] hover:bg-[#f1f4f6] border border-[#e0e3e5] transition-colors group"
                 >
                   <div className="flex justify-between items-start mb-1.5">
                     <h4 className="font-bold text-[14px] text-[#181c1e]">
                       {p.locationName}
                     </h4>
-                    {p.type === 'church' ? (
-                      <MapPin className="w-4 h-4 text-[#002045]" />
-                    ) : (
-                      <Building2 className="w-4 h-4 text-[#002045]" />
-                    )}
+                    <div className="flex items-center gap-1">
+                      {p.type === 'church' ? (
+                        <MapPin className="w-4 h-4 text-[#002045]" />
+                      ) : (
+                        <Building2 className="w-4 h-4 text-[#002045]" />
+                      )}
+                      <div className="hidden group-hover:flex items-center gap-1 ml-1">
+                        <button
+                          onClick={() => {
+                            setEditingPastoral(p);
+                            setIsPastoralModalOpen(true);
+                          }}
+                          className="p-1 rounded hover:bg-[#e5e9eb] text-[#43474e] cursor-pointer"
+                          title="Sửa"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Xóa phân công "${p.locationName}"?`)) onDeletePastoral(p.id);
+                          }}
+                          className="p-1 rounded hover:bg-[#ffdad6] text-[#ba1a1a] cursor-pointer"
+                          title="Xóa"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <p className="text-[12px] text-[#74777f] mb-2.5 font-medium">
                     {p.pastor}
@@ -282,9 +412,6 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
             <h3 className="text-[18px] font-bold text-[#002045]">
               Theo dõi Điểm số & Đánh giá
             </h3>
-            <p className="text-[13px] text-[#74777f] font-normal">
-              Kỳ I - Năm học 2024-2025
-            </p>
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto">
@@ -293,15 +420,21 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
               <input
                 type="text"
                 value={gradeSearchTerm}
-                onChange={(e) => setGradeSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setGradeSearchTerm(e.target.value);
+                  setGradePage(1);
+                }}
                 placeholder="Tìm kiếm chủng sinh..."
                 className="w-full pl-9 pr-3 py-2 bg-[#f7fafc] border border-[#c4c6cf] rounded-xl text-[13px] text-[#181c1e] focus:bg-white focus:border-[#002045] outline-none"
               />
             </div>
             <button
-              onClick={() => setGradeSearchTerm('')}
+              onClick={() => {
+                setGradeSearchTerm('');
+                setGradePage(1);
+              }}
               className="p-2 border border-[#c4c6cf] rounded-xl hover:bg-[#f1f4f6] text-[#43474e] transition-colors cursor-pointer"
-              title="Lọc"
+              title="Xóa tìm kiếm"
             >
               <Filter className="w-4 h-4" />
             </button>
@@ -321,7 +454,7 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e0e3e5]">
-              {filteredGrades.slice(0, 5).map((sem) => (
+              {pagedGrades.map((sem) => (
                 <tr
                   key={sem.id}
                   onClick={() => onSelectSeminarian(sem)}
@@ -401,24 +534,55 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
                   </td>
                 </tr>
               ))}
+              {pagedGrades.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-[13px] text-[#74777f]">
+                    Không tìm thấy chủng sinh phù hợp.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
         {/* Small Footer */}
         <div className="flex justify-between items-center pt-2 text-[13px] text-[#74777f]">
-          <span>Hiển thị 5 trên {seminarians.length} chủng sinh</span>
+          <span>
+            Hiển thị {pagedGrades.length} trên {filteredGrades.length} chủng sinh
+          </span>
           <div className="flex items-center gap-1">
-            <span>Trang 1 của 5</span>
-            <button className="p-1 hover:bg-[#f1f4f6] rounded cursor-pointer">
+            <span>Trang {currentGradePage} của {totalGradePages}</span>
+            <button
+              onClick={() => setGradePage((p) => Math.max(1, p - 1))}
+              disabled={currentGradePage <= 1}
+              className="p-1 hover:bg-[#f1f4f6] rounded cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button className="p-1 hover:bg-[#f1f4f6] rounded cursor-pointer">
+            <button
+              onClick={() => setGradePage((p) => Math.min(totalGradePages, p + 1))}
+              disabled={currentGradePage >= totalGradePages}
+              className="p-1 hover:bg-[#f1f4f6] rounded cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+            >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
+
+      <AddEditCourseModal
+        isOpen={isCourseModalOpen}
+        onClose={() => setIsCourseModalOpen(false)}
+        onSave={handleSaveCourseSubmit}
+        editingCourse={editingCourse}
+      />
+
+      <AddEditPastoralModal
+        isOpen={isPastoralModalOpen}
+        onClose={() => setIsPastoralModalOpen(false)}
+        onSave={handleSavePastoralSubmit}
+        editingAssignment={editingPastoral}
+      />
     </div>
   );
 };

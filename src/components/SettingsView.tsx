@@ -1,32 +1,50 @@
-import React, { useState } from 'react';
-import { 
-  Building, 
-  ShieldCheck, 
-  Database, 
-  GraduationCap, 
-  Save, 
-  RefreshCw, 
-  CheckCircle2, 
+import React, { useState, useEffect } from 'react';
+import {
+  Building,
+  ShieldCheck,
+  Database,
+  GraduationCap,
+  Save,
+  RefreshCw,
+  CheckCircle2,
   Lock,
   UserCheck
 } from 'lucide-react';
+import { AppSettings } from '../types';
 
 interface SettingsViewProps {
+  settings: AppSettings;
+  onSaveSettings: (settings: AppSettings) => void | Promise<void>;
+  dbConnected: boolean;
   onResetData: () => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ onResetData }) => {
-  const [seminaryName, setSeminaryName] = useState('Đại Chủng viện Thánh Giuse');
-  const [rectorName, setRectorName] = useState('Cha Giuse Nguyễn Văn A (Linh mục Giám đốc)');
-  const [diocese, setDiocese] = useState('Tổng Giáo phận Hà Nội');
-  const [address, setAddress] = useState('40 Nhà Chung, Hàng Trống, Hoàn Kiếm, Hà Nội');
-  const [currentYear, setCurrentYear] = useState('2024 - 2025');
+export const SettingsView: React.FC<SettingsViewProps> = ({
+  settings,
+  onSaveSettings,
+  dbConnected,
+  onResetData,
+}) => {
+  const [form, setForm] = useState<AppSettings>(settings);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  // Keep the form in sync if settings load/change from outside (e.g. after
+  // the initial fetch from the database resolves).
+  useEffect(() => {
+    setForm(settings);
+  }, [settings]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setIsSaving(true);
+    try {
+      await onSaveSettings(form);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -67,8 +85,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onResetData }) => {
                 </label>
                 <input
                   type="text"
-                  value={seminaryName}
-                  onChange={(e) => setSeminaryName(e.target.value)}
+                  value={form.seminaryName}
+                  onChange={(e) => setForm((f) => ({ ...f, seminaryName: e.target.value }))}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#c4c6cf] text-[14px] text-[#181c1e] focus:border-[#002045] outline-none"
                 />
               </div>
@@ -79,8 +97,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onResetData }) => {
                 </label>
                 <input
                   type="text"
-                  value={rectorName}
-                  onChange={(e) => setRectorName(e.target.value)}
+                  value={form.rectorName}
+                  onChange={(e) => setForm((f) => ({ ...f, rectorName: e.target.value }))}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#c4c6cf] text-[14px] text-[#181c1e] focus:border-[#002045] outline-none"
                 />
               </div>
@@ -91,8 +109,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onResetData }) => {
                 </label>
                 <input
                   type="text"
-                  value={diocese}
-                  onChange={(e) => setDiocese(e.target.value)}
+                  value={form.diocese}
+                  onChange={(e) => setForm((f) => ({ ...f, diocese: e.target.value }))}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#c4c6cf] text-[14px] text-[#181c1e] focus:border-[#002045] outline-none"
                 />
               </div>
@@ -103,8 +121,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onResetData }) => {
                 </label>
                 <input
                   type="text"
-                  value={currentYear}
-                  onChange={(e) => setCurrentYear(e.target.value)}
+                  value={form.currentYear}
+                  onChange={(e) => setForm((f) => ({ ...f, currentYear: e.target.value }))}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#c4c6cf] text-[14px] text-[#181c1e] focus:border-[#002045] outline-none"
                 />
               </div>
@@ -115,8 +133,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onResetData }) => {
                 </label>
                 <input
                   type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  value={form.address}
+                  onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#c4c6cf] text-[14px] text-[#181c1e] focus:border-[#002045] outline-none"
                 />
               </div>
@@ -163,6 +181,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onResetData }) => {
               <span>Tài khoản Quản trị</span>
             </h3>
 
+            <p className="text-[12px] text-[#74777f] leading-relaxed">
+              Hệ thống chưa có đăng nhập/phân quyền thật — mọi người mở ứng dụng đều có toàn quyền chỉnh sửa.
+              Danh sách dưới đây chỉ mang tính minh họa cho định hướng phân quyền trong tương lai.
+            </p>
+
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 rounded-xl bg-[#f7fafc] border border-[#e0e3e5]">
                 <div className="flex items-center gap-2.5">
@@ -186,7 +209,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onResetData }) => {
                   </div>
                 </div>
                 <span className="px-2 py-0.5 bg-[#e5e9eb] text-[#43474e] rounded text-[11px] font-bold">
-                  Chỉ đọc
+                  Chưa triển khai
                 </span>
               </div>
             </div>
@@ -199,32 +222,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onResetData }) => {
               <span>Dữ liệu & Đồng bộ</span>
             </h3>
 
-            <p className="text-[12px] text-[#74777f] leading-relaxed">
-              Dữ liệu được lưu trữ trực tiếp và tự động đồng bộ theo thời gian thực trong trình duyệt của bạn.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm('Khôi phục lại dữ liệu mẫu ban đầu của Đại chủng viện?')) {
-                  onResetData();
-                  alert('Đã khôi phục dữ liệu ban đầu thành công!');
-                }
-              }}
-              className="w-full py-2.5 rounded-xl border border-[#ba1a1a] text-[#ba1a1a] hover:bg-[#ffdad6]/40 text-[13px] font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>Khôi phục dữ liệu mặc định</span>
-            </button>
+            {dbConnected ? (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-[#d6e3ff]/50 border border-[#86a0cd]">
+                <CheckCircle2 className="w-4 h-4 text-[#002045] shrink-0" />
+                <p className="text-[12px] text-[#001b3c] font-semibold leading-relaxed">
+                  Đã kết nối Vercel Postgres — dữ liệu lưu trên server, dùng chung cho mọi thiết bị.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="text-[12px] text-[#74777f] leading-relaxed">
+                  Chưa kết nối cơ sở dữ liệu — dữ liệu chỉ lưu tạm trong trình duyệt này (localStorage),
+                  không dùng chung được giữa các thiết bị. Xem README.md để kết nối Vercel Postgres.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Khôi phục lại dữ liệu mẫu ban đầu của Đại chủng viện?')) {
+                      onResetData();
+                      alert('Đã khôi phục dữ liệu ban đầu thành công!');
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl border border-[#ba1a1a] text-[#ba1a1a] hover:bg-[#ffdad6]/40 text-[13px] font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Khôi phục dữ liệu mặc định</span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Save Button */}
           <button
             type="submit"
-            className="w-full py-3 bg-[#002045] hover:bg-[#1a365d] text-white rounded-2xl font-bold text-[14px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+            disabled={isSaving}
+            className="w-full py-3 bg-[#002045] hover:bg-[#1a365d] disabled:opacity-60 text-white rounded-2xl font-bold text-[14px] flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
           >
             <Save className="w-4 h-4" />
-            <span>Lưu cấu hình hệ thống</span>
+            <span>{isSaving ? 'Đang lưu...' : 'Lưu cấu hình hệ thống'}</span>
           </button>
         </div>
       </form>
