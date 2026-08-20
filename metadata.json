@@ -1,0 +1,6 @@
+{
+  "name": "Quản lý Chủng sinh",
+  "description": "Hệ thống Quản lý Chủng sinh (Seminarian Management System) với Bảng điều khiển, Danh sách chủng sinh, Hồ sơ chi tiết, Quản lý đào tạo & mục vụ, Lịch và Cài đặt.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

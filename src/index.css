@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f4f6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c4c6cf;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #74777f;
+}
+
+/* Print styling for Seminarian Profile printing & A4 Dossier */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm 15mm 15mm;
+  }
+  
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Times New Roman', Times, serif !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  aside, header, button, .no-print, nav {
+    display: none !important;
+  }
+
+  main, .print-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Specific modal print overrides */
+  .fixed.inset-0 {
+    position: static !important;
+    background: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .bg-\[\#636870\]\/20 {
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .shadow-2xl, .shadow-md, .shadow-xs, .shadow-sm {
+    box-shadow: none !important;
+  }
+
+  .rounded-3xl, .rounded-2xl {
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+}
